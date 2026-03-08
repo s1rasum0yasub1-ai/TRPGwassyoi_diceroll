@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Dice & Choice</title>
+<title>Dice Ultimate Tool</title>
 
 <style>
 body{
@@ -13,13 +13,20 @@ color:white;
 padding:20px;
 }
 
-#history{
-height:250px;
-overflow:auto;
+h2,h3{margin-top:20px}
+
+input,button{
+padding:6px;
+margin:4px 0;
+}
+
+#history,#countResult{
+margin-top:10px;
 background:#111827;
 padding:8px;
-margin-top:10px;
 border-radius:8px;
+max-height:250px;
+overflow:auto;
 }
 
 .msg{
@@ -28,38 +35,174 @@ padding:4px;
 background:#1f2937;
 border-radius:4px;
 }
-
-input{
-width:80%;
-padding:6px;
-}
-
-button{
-padding:6px 10px;
-}
 </style>
 </head>
 
 <body>
 
-<h2>🎲 ダイス＆Choiceサイト</h2>
+<h2>🎲 ダイス＆Choiceツール</h2>
 
-<input id="input" placeholder="例: 1d100 / 999d999 / choice[a,b,c]">
+<input id="input" placeholder="例: 1d100 / 2B100<=50 / choice[a,b,c]">
 <button onclick="run()">実行</button>
 
 <div id="history"></div>
+
+<hr>
+
+<h3>🔢 カンマ集計ツール</h3>
+<input id="countInput" placeholder="例: 1,1,2,3,3,3">
+<button onclick="countItems()">集計</button>
+<div id="countResult"></div>
 
 <script>
 
 let historyDiv=document.getElementById("history");
 
+/* 履歴保存 */
 function saveHistory(text){
 let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
 list.unshift(text);
 localStorage.setItem("diceHistory",JSON.stringify(list));
 }
 
+/* 履歴表示 */
 function loadHistory(){
+let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
+historyDiv.innerHTML="";
+list.forEach(t=>{
+let d=document.createElement("div");
+d.className="msg";
+d.textContent=t;
+historyDiv.appendChild(d);
+});
+}
+
+/* メイン処理 */
+function run(){
+
+let text=input.value.trim();
+if(!text)return;
+
+let result="";
+
+/* choice */
+if(text.startsWith("choice[")){
+let options=text.slice(7,-1).split(",");
+result=options[Math.floor(Math.random()*options.length)];
+}
+
+/* Bダイス（目標値あり対応） */
+else if(text.toUpperCase().includes("B")){
+
+let match=text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
+
+if(!match){
+result="形式エラー";
+}
+else{
+
+let n=parseInt(match[1]);
+let m=parseInt(match[2]);
+let target=null;
+
+if(match[3]){
+target=parseInt(match[3].replace("<=",""));
+}
+
+let rolls=[];
+let success=0;
+
+for(let i=0;i<n;i++){
+let r=Math.floor(Math.random()*m)+1;
+rolls.push(r);
+
+if(target!==null && r<=target){
+success++;
+}
+}
+
+if(target!==null){
+result=text+" ["+rolls.join(",")+"] 成功数"+success;
+}
+else{
+result="["+rolls.join(",")+"]";
+}
+
+}
+}
+
+/* 通常ダイス */
+else if(text.includes("d")){
+
+let parts=text.toLowerCase().split("d");
+let n=parseInt(parts[0]);
+let m=parseInt(parts[1]);
+
+if(isNaN(n)||isNaN(m)){
+result="形式エラー";
+}
+else{
+let total=0;
+for(let i=0;i<n;i++){
+total+=Math.floor(Math.random()*m)+1;
+}
+result=total;
+}
+}
+
+else{
+result="未対応コマンド";
+}
+
+let output=text+" → "+result;
+
+let div=document.createElement("div");
+div.className="msg";
+div.textContent=output;
+
+historyDiv.prepend(div);
+
+saveHistory(output);
+
+input.value="";
+}
+
+/* 集計ツール */
+function countItems(){
+
+let text=document.getElementById("countInput").value.trim();
+if(!text)return;
+
+let items=text.split(",")
+.map(t=>t.trim())
+.filter(t=>t!=="");
+
+let map={};
+
+items.forEach(item=>{
+map[item]=(map[item]||0)+1;
+});
+
+let sorted=Object.keys(map).sort((a,b)=>{
+if(!isNaN(a)&&!isNaN(b))
+return Number(a)-Number(b);
+return a.localeCompare(b);
+});
+
+let output="";
+sorted.forEach(key=>{
+output+=key+" × "+map[key]+"<br>";
+});
+
+document.getElementById("countResult").innerHTML=output;
+}
+
+loadHistory();
+
+</script>
+
+</body>
+</html>function loadHistory(){
 let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
 historyDiv.innerHTML="";
 list.forEach(t=>{
