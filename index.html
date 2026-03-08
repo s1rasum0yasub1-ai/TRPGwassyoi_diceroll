@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Dice & Choice</title>
+
+<style>
+body{
+margin:0;
+font-family:sans-serif;
+background:#0f172a;
+color:white;
+padding:20px;
+}
+
+#history{
+height:250px;
+overflow:auto;
+background:#111827;
+padding:8px;
+margin-top:10px;
+border-radius:8px;
+}
+
+.msg{
+margin:4px 0;
+padding:4px;
+background:#1f2937;
+border-radius:4px;
+}
+
+input{
+width:80%;
+padding:6px;
+}
+
+button{
+padding:6px 10px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🎲 ダイス＆Choiceサイト</h2>
+
+<input id="input" placeholder="例: 1d100 / 999d999 / choice[a,b,c]">
+<button onclick="run()">実行</button>
+
+<div id="history"></div>
+
+<script>
+
+let historyDiv=document.getElementById("history");
+
+function saveHistory(text){
+let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
+list.unshift(text);
+localStorage.setItem("diceHistory",JSON.stringify(list));
+}
+
+function loadHistory(){
+let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
+historyDiv.innerHTML="";
+list.forEach(t=>{
+let d=document.createElement("div");
+d.className="msg";
+d.textContent=t;
+historyDiv.appendChild(d);
+});
+}
+
+function run(){
+let text=input.value.trim();
+if(!text)return;
+
+let result="";
+
+
+// choice[a,b,c]
+if(text.startsWith("choice[")){
+let options=text.slice(7,-1).split(",");
+result=options[Math.floor(Math.random()*options.length)];
+}
+
+// NdM ダイス
+else if(text.includes("d")){
+let parts=text.toLowerCase().split("d");
+let n=parseInt(parts[0]);
+let m=parseInt(parts[1]);
+
+if(isNaN(n)||isNaN(m)){
+result="形式エラー";
+}
+else{
+let total=0;
+for(let i=0;i<n;i++){
+total+=Math.floor(Math.random()*m)+1;
+}
+result=total;
+}
+}
+
+else{
+result="未対応コマンド";
+}
+
+let output=text+" → "+result;
+
+let div=document.createElement("div");
+div.className="msg";
+div.textContent=output;
+historyDiv.prepend(div);
+
+saveHistory(output);
+
+input.value="";
+}
+
+loadHistory();
+
+</script>
+
+</body>
+</html>
