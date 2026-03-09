@@ -1,0 +1,82 @@
+body{
+font-family:sans-serif;
+margin:20px;
+transition:0.3s;
+}
+
+/* テーマ */
+
+.dark{
+background:#0f172a;
+color:white;
+}
+
+.white{
+background:#f4f4f4;
+color:black;
+}
+
+.midnight{
+background:#020617;
+color:#cbd5f5;
+}
+
+/* UI */
+
+button,input,select,textarea{
+padding:8px;
+margin:4px;
+border-radius:6px;
+border:1px solid #666;
+font-size:16px;
+}
+
+button{
+cursor:pointer;
+}
+
+#history{
+border:1px solid #666;
+border-radius:8px;
+padding:10px;
+max-height:300px;
+overflow:auto;
+margin-top:10px;
+}
+
+.msg{
+background:rgba(120,120,120,0.15);
+padding:8px;
+margin:5px 0;
+border-radius:6px;
+}
+
+/* ダイス結果 */
+
+.normal{color:#38bdf8;font-weight:bold;}
+.crit{color:#facc15;font-weight:bold;}
+.fumble{color:#ef4444;font-weight:bold;}
+
+/* チャットログ */
+
+#viewer{
+border:1px solid #666;
+border-radius:8px;
+padding:10px;
+height:260px;
+overflow:auto;
+margin-top:10px;
+}
+
+.chatLine{
+margin:4px 0;
+font-weight:bold;
+
+/* 縁取り */
+
+text-shadow:
+-1px -1px 0 #000,
+1px -1px 0 #000,
+-1px 1px 0 #000,
+1px 1px 0 #000;
+}

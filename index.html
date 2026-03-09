@@ -1,0 +1,177 @@
+<!DOCTYPE html><html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>TRPG Dice</title>
+<link rel="stylesheet" href="style.css">
+</head><body class="dark"><h2>🎲 TRPG Dice</h2>テーマ
+<select onchange="setTheme(this.value)">
+
+<option value="dark">黒</option>
+<option value="white">白</option>
+<option value="midnight">ミッドナイト</option>
+</select><br><input id="input" placeholder="例: CCB<=60 攻撃">
+<button onclick="run()">振る</button><a href="log.html" target="_blank">
+<button>📜 ログ再生</button>
+</a><div id="history"></div><script>
+
+const input=document.getElementById("input")
+const historyDiv=document.getElementById("history")
+
+/* Enter */
+
+input.addEventListener("keypress",e=>{
+if(e.key==="Enter") run()
+})
+
+/* テーマ */
+
+function setTheme(t){
+document.body.className=t
+}
+
+/* 履歴 */
+
+function saveHistory(text){
+
+let list=JSON.parse(localStorage.getItem("diceHistory")||"[]")
+
+list.unshift(text)
+
+if(list.length>100) list.pop()
+
+localStorage.setItem("diceHistory",JSON.stringify(list))
+
+}
+
+/* ダイス */
+
+function run(){
+
+let full=input.value.trim()
+
+if(!full) return
+
+let text=full.split(" ")[0]
+
+let result=""
+let color="normal"
+
+/* CCB */
+
+if(text.toUpperCase().startsWith("CCB")){
+
+let m=text.match(/CCB((\d+))?(<=\d+)?/i)
+
+let fumble=null
+let target=null
+
+if(m[2]) fumble=parseInt(m[2])
+if(m[3]) target=parseInt(m[3].replace("<=",""))
+
+let roll=Math.floor(Math.random()*100)+1
+
+let success=roll<=target?"成功":"失敗"
+
+if(roll===1) color="crit"
+if(roll===100) color="fumble"
+
+if(fumble && roll>=fumble){
+
+color="fumble"
+result=`(1D100<=${target}) ＞ ${roll} ＞ ${success} ＞ 故障`
+
+}else{
+
+result=`(1D100<=${target}) ＞ ${roll} ＞ ${success}`
+
+}
+
+}
+
+/* NdM */
+
+else if(/^\d+d\d+/i.test(text)){
+
+let p=text.toLowerCase().split("d")
+
+let n=parseInt(p[0])
+let m=parseInt(p[1])
+
+let rolls=[]
+let total=0
+
+for(let i=0;i<n;i++){
+
+let r=Math.floor(Math.random()*m)+1
+
+rolls.push(r)
+total+=r
+
+}
+
+result=`(${n}D${m}) ＞ [${rolls.join(",")}] ＞ 合計${total}`
+
+}
+
+/* Bダイス */
+
+else if(/^\d+B\d+/i.test(text)){
+
+let m=text.match(/(\d+)B(\d+)(<=\d+)?/i)
+
+let n=parseInt(m[1])
+let max=parseInt(m[2])
+
+let target=null
+
+if(m[3]) target=parseInt(m[3].replace("<=",""))
+
+let rolls=[]
+let success=0
+
+for(let i=0;i<n;i++){
+
+let r=Math.floor(Math.random()*max)+1
+
+rolls.push(r)
+
+if(target && r<=target) success++
+
+}
+
+result=`(${n}B${max}<=${target}) ＞ [${rolls.join(",")}] ＞ 成功数${success}`
+
+}
+
+/* choice */
+
+else if(text.startsWith("choice[")){
+
+let list=text.slice(7,-1).split(",")
+
+let r=list[Math.floor(Math.random()*list.length)]
+
+result=`choice ＞ ${r}`
+
+}
+
+/* 表示 */
+
+let log=`${full} → <span class="${color}">${result}</span>`
+
+let div=document.createElement("div")
+
+div.className="msg"
+
+div.innerHTML=log
+
+historyDiv.prepend(div)
+
+saveHistory(log)
+
+input.value=""
+
+}
+
+</script></body>
+</html>
