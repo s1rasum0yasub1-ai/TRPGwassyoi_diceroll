@@ -2,139 +2,204 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>RESB & TRPG ダイスツール</title>
+<title>Ultimate RESB Dice Tool</title>
 <style>
-body{font-family:sans-serif;background:#0f172a;color:#fff;padding:20px;}
-h2,h3{margin-top:0;}
-input,button,select{padding:6px;margin:4px;}
-#resbDiv,#diceDiv,#history{background:#1e293b;padding:10px;border-radius:8px;margin-top:10px;}
-#history{max-height:250px;overflow:auto;}
-.msg{margin:4px 0;padding:4px;background:#334155;border-radius:4px;}
-label{display:block;margin-top:6px;}
-.flex{display:flex;align-items:center;gap:10px;}
+:root{
+  --bg:#0f172a;
+  --panel:#1e293b;
+  --accent:#334155;
+  --text:#ffffff;
+}
+
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  padding:20px;
+}
+
+h2,h3{margin-top:20px;}
+input,button,select{padding:6px;margin:4px 0;}
+#history,#countResult{
+  margin-top:10px;
+  background:var(--panel);
+  padding:8px;
+  border-radius:8px;
+  max-height:250px;
+  overflow:auto;
+}
+.msg{
+  margin:4px 0;
+  padding:4px;
+  background:#1f2937;
+  border-radius:4px;
+}
+
+/* フェード演出 */
+#intro{
+  position:fixed;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:24px;
+  color:#f0f0f0;
+  background:rgba(30,30,50,0.9);
+  padding:20px 30px;
+  border-radius:12px;
+  opacity:1;
+  transition:opacity 3s ease-out;
+  z-index:1000;
+}
 </style>
 </head>
 <body>
 
-<h2>🎲 RESB & TRPG ダイスツール</h2>
+<div id="intro">ふんぐるい・むぐるうなふ・くとぅるう・るるいえ・うがふなぐる・ふたぐん</div>
 
-<div id="resbDiv">
-  <div class="flex">
-    <div>
-      <label>自分 (x)</label>
-      <input id="resbX" type="number">
-    </div>
-    <div>
-      <label>相手 (y)</label>
-      <input id="resbY" type="number">
-    </div>
-    <button onclick="calcRESB()">計算</button>
-  </div>
-  <div id="resbResult">RESB 結果: -</div>
-</div>
-
-<div id="diceDiv">
-  <label>ダイス入力 (例: 1d100 / 2B100<=50 / CCB<=50 / CCB(97)<=50 / choice[a,b,c] / 3d6)</label>
-  <input id="diceInput">
-  <button onclick="rollDice()">振る</button>
-</div>
+<h2>🎲 Ultimate RESB Dice Tool</h2>
+<input id="input" placeholder="例: 1d100 / 2B100<=50 / choice[a,b,c] / RESB(11-10)">
+<button onclick="run()">実行</button>
 
 <div id="history"></div>
 
+<hr>
+
+<h3>🔢 カンマ集計ツール</h3>
+<input id="countInput" placeholder="例: 1,1,2,3,3,3">
+<button onclick="countItems()">集計</button>
+<div id="countResult"></div>
+
 <script>
-const historyDiv = document.getElementById("history");
+const historyDiv=document.getElementById("history");
+const input=document.getElementById("input");
 
-/* 履歴追加 */
-function addHistory(text){
-  let div = document.createElement("div");
-  div.className = "msg";
-  div.textContent = text;
-  historyDiv.prepend(div);
+/* フェードアウト */
+window.addEventListener('load', ()=>{
+  const intro=document.getElementById("intro");
+  setTimeout(()=>{ intro.style.opacity=0; }, 1000);
+  setTimeout(()=>{ intro.style.display="none"; }, 4000);
+});
+
+/* 履歴 */
+function saveHistory(text){
+  let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
+  list.unshift(text);
+  if(list.length>100) list.pop();
+  localStorage.setItem("diceHistory",JSON.stringify(list));
+}
+function loadHistory(){
+  let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
+  historyDiv.innerHTML="";
+  list.forEach(t=>{
+    let d=document.createElement("div");
+    d.className="msg";
+    d.textContent=t;
+    historyDiv.appendChild(d);
+  });
 }
 
-/* RESB計算 */
-function calcRESB(){
-  let x = parseFloat(document.getElementById("resbX").value)||0;
-  let y = parseFloat(document.getElementById("resbY").value)||0;
-  let result = x - y;
-  let text = `RESB(${x}-${y}) → ${result}`;
-  document.getElementById("resbResult").textContent = text;
-  addHistory(text);
-}
-
-/* ダイス振り */
-function rollDice(){
-  let text = document.getElementById("diceInput").value.trim().replace(/\s+/g,"");
+/* ダイス＆Choice実行 */
+function run(){
+  let text=input.value.trim();
   if(!text) return;
-  let result = "";
+  let result="";
 
   // choice[a,b,c]
-  if(text.toLowerCase().startsWith("choice[")){
-    let options = text.slice(7,-1).split(",").map(s=>s.trim());
-    result = `choice → ${options[Math.floor(Math.random()*options.length)]}`;
+  if(text.startsWith("choice[")){
+    let options=text.slice(7,-1).split(",").map(s=>s.trim());
+    result=options[Math.floor(Math.random()*options.length)];
+  }
+  // RESB(x - y)
+  else if(text.toUpperCase().startsWith("RESB(")){
+    let match=text.toUpperCase().match(/RESB\(\s*(\d+)\s*-\s*(\d+)\s*\)/);
+    if(!match){ result="形式エラー"; }
+    else{
+      let x=parseInt(match[1]), y=parseInt(match[2]);
+      let diff=x-y;
+      let target=50 + diff*5;
+      if(target<1) target=1;
+      if(target>100) target=100;
+      let roll=Math.floor(Math.random()*100)+1;
+      let success=roll<=target?1:0;
+      result=text+" ["+roll+"] 成功数"+success+" (目標値:"+target+")";
+    }
   }
   // Bダイス
-  else if(/^\d+B\d+(<=\d+)?$/i.test(text)){
-    let m = text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
-    let n = parseInt(m[1]);
-    let sides = parseInt(m[2]);
-    let target = m[3]?parseInt(m[3].replace("<=","")):null;
-    if(n>1000){ result="回数上限1000まで"; }
+  else if(text.toUpperCase().includes("B")){
+    let match=text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
+    if(!match){ result="形式エラー"; }
     else{
-      let rolls=[],success=0;
-      for(let i=0;i<n;i++){
-        let r = Math.floor(Math.random()*sides)+1;
-        rolls.push(r);
-        if(target!==null && r<=target) success++;
+      let n=parseInt(match[1]), m=parseInt(match[2]);
+      let target=match[3]?parseInt(match[3].replace("<=","")):null;
+      if(n>1000){ result="回数上限1000まで"; }
+      else{
+        let rolls=[], success=0;
+        for(let i=0;i<n;i++){
+          let r=Math.floor(Math.random()*m)+1;
+          rolls.push(r);
+          if(target!==null && r<=target) success++;
+        }
+        result=target!==null ? text+" ["+rolls.join(",")+"] 成功数"+success : "["+rolls.join(",")+"]";
       }
-      result = target!==null ? text+" ["+rolls.join(",")+"] 成功数"+success : "["+rolls.join(",")+"]";
     }
   }
   // NdM ダイス
-  else if(/^\d+d\d+$/i.test(text)){
-    let parts = text.toLowerCase().split("d");
-    let n = parseInt(parts[0]);
-    let m = parseInt(parts[1]);
-    if(n>1000){ result="回数上限1000まで"; }
+  else if(text.includes("d")){
+    let parts=text.toLowerCase().split("d");
+    let n=parseInt(parts[0]), m=parseInt(parts[1]);
+    if(isNaN(n)||isNaN(m)){ result="形式エラー"; }
+    else if(n>1000){ result="回数上限1000まで"; }
     else{
-      let total=0,rolls=[];
+      let total=0, rolls=[];
       for(let i=0;i<n;i++){
         let r=Math.floor(Math.random()*m)+1;
         rolls.push(r);
         total+=r;
       }
-      result = rolls.length>1 ? rolls.join(",")+" → 合計:"+total : total;
+      result=rolls.length>1?rolls.join(",")+" → 合計:"+total:total;
     }
   }
-  // CCB (故障ナンバー対応)
-  else if(/^CCB(\(\d+\))?(<=\d+)?$/i.test(text)){
-    let m = text.toUpperCase().match(/^CCB(\((\d+)\))?(<=\d+)?$/i);
-    let failNum = m[2]?parseInt(m[2]):null;
-    let target = m[3]?parseInt(m[3].replace("<=","")):null;
-    let roll = Math.floor(Math.random()*100)+1;
-    let success = (target!==null && roll<=target)?1:0;
-    let fail = (failNum!==null && roll>=failNum)?true:false;
-    result = `${text} → 出目:${roll} ${success?"成功":""} ${fail?"故障":""}`;
+  // CCB判定
+  else if(text.toUpperCase().startsWith("CCB")){
+    let match=text.toUpperCase().match(/CCB(<=\d+)?/);
+    let target=match[1]?parseInt(match[1].replace("<=","")):null;
+    let roll=Math.floor(Math.random()*100)+1;
+    let success=target!==null && roll<=target?1:0;
+    result=text+" ["+roll+"]"+(target!==null?" 成功数"+success:"");
   }
-  // CC (クリティカル/ファンブル)
-  else if(/^CC(<=\d+)?$/i.test(text)){
-    let m = text.toUpperCase().match(/^CC(<=\d+)?$/i);
-    let target = m[1]?parseInt(m[1].replace("<=","")):null;
-    let roll = Math.floor(Math.random()*100)+1;
-    let succ = (target!==null && roll<=target)?1:0;
-    let crit = roll===1?"クリティカル":"";
-    let fumble = roll===100?"ファンブル":"";
-    result = target!==null ? `${text} → 出目:${roll} 成功数${succ} ${crit}${fumble}` : `${text} → 出目:${roll} ${crit}${fumble}`;
+  // CC判定
+  else if(text.toUpperCase().startsWith("CC")){
+    let roll=Math.floor(Math.random()*100)+1;
+    let crit=roll===1?"クリティカル":"";
+    let fumble=roll===100?"ファンブル":"";
+    result=text+" ["+roll+"] "+crit+fumble;
   }
-  else{
-    result="未対応コマンド";
-  }
+  else{ result="未対応コマンド"; }
 
-  addHistory(result);
-  document.getElementById("diceInput").value="";
+  let div=document.createElement("div");
+  div.className="msg";
+  div.textContent=text+" → "+result;
+  historyDiv.prepend(div);
+  saveHistory(text+" → "+result);
+  input.value="";
+}
+
+/* カンマ集計ツール */
+function countItems(){
+  let text=document.getElementById("countInput").value.trim();
+  if(!text) return;
+  let items=text.split(",").map(t=>t.trim()).filter(t=>t!=="");
+  let map={};
+  items.forEach(item=>map[item]=(map[item]||0)+1);
+  let sorted=Object.keys(map).sort((a,b)=>!isNaN(a)&&!isNaN(b)?Number(a)-Number(b):a.localeCompare(b));
+  let output="";
+  sorted.forEach(key=>output+=key+" × "+map[key]+"<br>");
+  document.getElementById("countResult").innerHTML=output;
 }
 
 /* 初期化 */
+loadHistory();
 </script>
 
 </body>
