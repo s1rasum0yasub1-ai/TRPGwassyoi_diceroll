@@ -1,82 +1,54 @@
 body{
 font-family:sans-serif;
-margin:20px;
+text-align:center;
 transition:0.3s;
 }
 
-/* テーマ */
-
-.dark{
-background:#0f172a;
-color:white;
-}
-
-.white{
-background:#f4f4f4;
+.theme-light{
+background:white;
 color:black;
 }
 
-.midnight{
-background:#020617;
-color:#cbd5f5;
+.theme-dark{
+background:#111;
+color:white;
 }
 
-/* UI */
+.theme-midnight{
+background:#0b0f2a;
+color:#cfd8ff;
+}
 
-button,input,select,textarea{
-padding:8px;
-margin:4px;
-border-radius:6px;
-border:1px solid #666;
-font-size:16px;
+input{
+font-size:18px;
+padding:10px;
+width:250px;
 }
 
 button{
+padding:10px 15px;
+margin:5px;
+font-size:16px;
 cursor:pointer;
 }
 
-#history{
-border:1px solid #666;
-border-radius:8px;
-padding:10px;
-max-height:300px;
-overflow:auto;
-margin-top:10px;
+#result{
+margin-top:20px;
+font-size:24px;
 }
 
-.msg{
-background:rgba(120,120,120,0.15);
-padding:8px;
-margin:5px 0;
-border-radius:6px;
+.blue{
+color:#4da6ff;
 }
 
-/* ダイス結果 */
-
-.normal{color:#38bdf8;font-weight:bold;}
-.crit{color:#facc15;font-weight:bold;}
-.fumble{color:#ef4444;font-weight:bold;}
-
-/* チャットログ */
-
-#viewer{
-border:1px solid #666;
-border-radius:8px;
-padding:10px;
-height:260px;
-overflow:auto;
-margin-top:10px;
+.yellow{
+color:#ffd900;
 }
 
-.chatLine{
-margin:4px 0;
+.red{
+color:#ff4d4d;
+}
+
+.diceResult{
 font-weight:bold;
-
-/* 縁取り */
-
-text-shadow:
--1px -1px 0 #000,
-1px -1px 0 #000,
--1px 1px 0 #000,
-1px 1px 0 #000;
 }
