@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>Session Log</title>
@@ -8,19 +8,19 @@
 
 <body class="theme-dark">
 
-<h1>セッションログ</h1>
+<h1>ログビューア</h1>
 
-<textarea id="logInput" rows="10" style="width:80%" placeholder="ログ貼り付け"></textarea>
+<textarea id="logInput" rows="12" style="width:90%" placeholder="ログ貼り付け"></textarea>
 
 <br><br>
 
-<button onclick="parseLog()">表示</button>
+<button onclick="parse()">表示</button>
 
 <div id="logView"></div>
 
 <script>
 
-function parseLog(){
+function parse(){
 
 let text=document.getElementById("logInput").value
 
@@ -28,42 +28,27 @@ let lines=text.split("\n")
 
 let html=""
 
-lines.forEach(line=>{
+lines.forEach(l=>{
 
-let parts=line.split(":")
+let p=l.split(":")
 
-if(parts.length>=2){
+if(p.length>=2){
 
-let name=parts[0]
-let msg=parts.slice(1).join(":")
+let name=p[0]
 
-let color=randomColor()
+let msg=p.slice(1).join(":")
 
-html+="<div class='logLine'><span class='name' style='color:"+color+"'>"+name+"</span>: "+msg+"</div>"
+html+="<div><span class='char'>"+name+"</span>: "+msg+"</div>"
 
 }else{
 
-html+="<div>"+line+"</div>"
+html+="<div>"+l+"</div>"
 
 }
 
 })
 
 document.getElementById("logView").innerHTML=html
-
-}
-
-function randomColor(){
-
-let colors=[
-"#ff8a8a",
-"#8affc1",
-"#8ab4ff",
-"#ffd480",
-"#d28aff"
-]
-
-return colors[Math.floor(Math.random()*colors.length)]
 
 }
 
