@@ -2,57 +2,41 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Ultimate Dice Tool</title>
+<title>Ultimate Dice & Choice Tool</title>
 <style>
-body{font-family:sans-serif;background:#0f172a;color:#fff;padding:20px}
-input,button{padding:6px;margin:4px 0}
-#history{margin-top:10px;background:#1e293b;padding:8px;border-radius:8px;max-height:300px;overflow:auto}
-.msg{margin:4px 0;padding:4px;background:#334155;border-radius:4px;word-break:break-all}
+:root{
+  --bg:#0f172a;
+  --panel:#1e293b;
+  --accent:#334155;
+  --text:#ffffff;
+}
+body{margin:0;font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px}
+h2,h3{margin-top:20px}
+input,button,select{padding:6px;margin:4px 0}
+#history,#countResult{margin-top:10px;background:var(--panel);padding:8px;border-radius:8px;max-height:250px;overflow:auto}
+.msg{margin:4px 0;padding:4px;background:#1f2937;border-radius:4px}
 </style>
 </head>
 <body>
-<h2>🎲 Ultimate Dice Tool</h2>
+<h2>🎲 Ultimate Dice & Choice Tool</h2>
 <input id="input" placeholder="例: 1d100 / 2B100<=50 / choice[a,b,c]">
 <button onclick="run()">実行</button>
 <div id="history"></div>
-
+<hr>
+<h3>🔢 カンマ集計ツール</h3>
+<input id="countInput" placeholder="例: 1,1,2,3,3,3">
+<button onclick="countItems()">集計</button>
+<div id="countResult"></div>
 <script>
-const h=document.getElementById("history"),i=document.getElementById("input");
-function saveHistory(t){let l=JSON.parse(localStorage.getItem("diceHistory")||"[]");l.unshift(t);if(l.length>100)l.pop();localStorage.setItem("diceHistory",JSON.stringify(l))}
-function loadHistory(){let l=JSON.parse(localStorage.getItem("diceHistory")||"[]");h.innerHTML="";l.forEach(t=>{let d=document.createElement("div");d.className="msg";d.textContent=t;h.appendChild(d)})}
-function run(){
-  let t=i.value.trim();if(!t)return;
-  let res="",s=t.split(" ").filter(Boolean).join(" ");
-  try{
-    if(s.startsWith("choice[")){
-      let opt=s.slice(7,-1).split(",").map(x=>x.trim());
-      res=opt[Math.floor(Math.random()*opt.length)]
-    }else if(s.toUpperCase().includes("B")){
-      let m=s.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);if(!m){res="形式エラー"}else{
-        let n=parseInt(m[1]),d=parseInt(m[2]),target=m[3]?parseInt(m[3].replace("<=","")):null;let rolls=[],succ=0;
-        for(let j=0;j<n;j++){let r=Math.floor(Math.random()*d)+1;rolls.push(r);if(target!==null&&r<=target)succ++}
-        res=target!==null?s+" ["+rolls.join(",")+"] 成功数"+succ:"["+rolls.join(",")+"]"
-      }
-    }else if(s.toUpperCase().startsWith("CCB")){
-      let m=s.toUpperCase().match(/CCB(<=\d+)?/);let target=m[1]?parseInt(m[1].replace("<=","")):null;let r=Math.floor(Math.random()*100)+1,resCount=0;if(target!==null&&r<=target)resCount=1;res=s+" ["+r+"]"+(target!==null?" 成功数"+resCount:"")}
-    else if(s.toUpperCase().startsWith("CC")){
-      let r=Math.floor(Math.random()*100)+1,resTxt="";if(r===1)resTxt="クリティカル";else if(r===100)resTxt="ファンブル";res=s+" ["+r+"] "+resTxt
-    }else if(s.includes("d")){
-      let p=s.toLowerCase().split("d");let n=parseInt(p[0]),d=parseInt(p[1]);if(isNaN(n)||isNaN(d)){res="形式エラー"}else{let total=0,rolls=[];for(let j=0;j<n;j++){let r=Math.floor(Math.random()*d)+1;rolls.push(r);total+=r}res=rolls.length>1?rolls.join(",")+" → 合計:"+total:total}}
-    else{res="未対応コマンド"}
-  }catch(e){res="エラー"}
-  let div=document.createElement("div");div.className="msg";div.textContent=t+" → "+res;h.prepend(div);saveHistory(t+" → "+res);i.value=""
-}
-loadHistory();
-</script>
-</body>
-</html>function saveHistory(text){
+const historyDiv=document.getElementById("history");
+const input=document.getElementById("input");
+
+function saveHistory(text){
   let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
   list.unshift(text);
   if(list.length>100) list.pop();
   localStorage.setItem("diceHistory",JSON.stringify(list));
 }
-
 function loadHistory(){
   let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
   historyDiv.innerHTML="";
@@ -60,6 +44,103 @@ function loadHistory(){
     let d=document.createElement("div");
     d.className="msg";
     d.textContent=t;
+    historyDiv.appendChild(d);
+  });
+}
+
+function run(){
+  let text=input.value.trim();
+  if(!text) return;
+  let result="";
+
+  // 空白削除でコマンド部分だけに
+  text=text.replace(/\s+/g,"");
+
+  // choice[a,b,c]
+  if(text.startsWith("choice[")){
+    let options=text.slice(7,-1).split(",").map(s=>s.trim());
+    result=options[Math.floor(Math.random()*options.length)];
+  }
+  // Bダイス
+  else if(/^\d+B\d+/.test(text.toUpperCase())){
+    let match=text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
+    if(!match){ result="形式エラー"; }
+    else{
+      let n=parseInt(match[1]);
+      let m=parseInt(match[2]);
+      let target=match[3]?parseInt(match[3].replace("<=","")):null;
+      if(n>1000){ result="回数上限1000まで"; }
+      else{
+        let rolls=[],success=0;
+        for(let i=0;i<n;i++){
+          let r=Math.floor(Math.random()*m)+1;
+          rolls.push(r);
+          if(target!==null && r<=target) success++;
+        }
+        result=target!==null?text+" ["+rolls.join(",")+"] 成功数"+success:"["+rolls.join(",")+"]";
+      }
+    }
+  }
+  // NdM
+  else if(/\d+d\d+/.test(text.toLowerCase())){
+    let parts=text.toLowerCase().split("d");
+    let n=parseInt(parts[0]);
+    let m=parseInt(parts[1]);
+    if(isNaN(n)||isNaN(m)){ result="形式エラー"; }
+    else if(n>1000){ result="回数上限1000まで"; }
+    else{
+      let total=0,rolls=[];
+      for(let i=0;i<n;i++){
+        let r=Math.floor(Math.random()*m)+1;
+        rolls.push(r);
+        total+=r;
+      }
+      result=rolls.length>1?rolls.join(",")+" → 合計:"+total:total;
+    }
+  }
+  // CCB
+  else if(text.toUpperCase().startsWith("CCB")){
+    let match=text.toUpperCase().match(/CCB(<=\d+)?/);
+    let target=match[1]?parseInt(match[1].replace("<=","")):null;
+    let roll=Math.floor(Math.random()*100)+1;
+    let success=(target!==null && roll<=target)?1:0;
+    result=text+" ["+roll+"]"+(target!==null?" 成功数"+success:"");
+  }
+  // CC
+  else if(text.toUpperCase().startsWith("CC")){
+    let match=text.toUpperCase().match(/CC(<=\d+)?/);
+    let target=match[1]?parseInt(match[1].replace("<=","")):null;
+    let roll=Math.floor(Math.random()*100)+1;
+    let crit=(roll===1)?"クリティカル":"";
+    let fumble=(roll===100)?"ファンブル":"";
+    result=text+" ["+roll+"] "+crit+fumble;
+  }
+  else{ result="未対応コマンド"; }
+
+  let div=document.createElement("div");
+  div.className="msg";
+  div.textContent=input.value+" → "+result;
+  historyDiv.prepend(div);
+  saveHistory(input.value+" → "+result);
+  input.value="";
+}
+
+function countItems(){
+  let text=document.getElementById("countInput").value.trim();
+  if(!text) return;
+  let items=text.split(",").map(t=>t.trim()).filter(t=>t!=="");
+  let map={};
+  items.forEach(item=>map[item]=(map[item]||0)+1);
+  let sorted=Object.keys(map).sort((a,b)=>!isNaN(a)&&!isNaN(b)?Number(a)-Number(b):a.localeCompare(b));
+  let output="";
+  sorted.forEach(key=>output+=key+" × "+map[key]+"<br>");
+  document.getElementById("countResult").innerHTML=output;
+}
+
+loadHistory();
+</script>
+</body>
+</html>    d.textContent=t;
     historyDiv.appendChild(d);
   });
 }
