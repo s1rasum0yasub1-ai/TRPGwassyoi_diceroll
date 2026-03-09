@@ -1,177 +1,157 @@
-<!DOCTYPE html><html lang="ja">
+<!DOCTYPE html>
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
 <title>TRPG Dice</title>
 <link rel="stylesheet" href="style.css">
-</head><body class="dark"><h2>🎲 TRPG Dice</h2>テーマ
-<select onchange="setTheme(this.value)">
+</head>
 
-<option value="dark">黒</option>
-<option value="white">白</option>
-<option value="midnight">ミッドナイト</option>
-</select><br><input id="input" placeholder="例: CCB<=60 攻撃">
-<button onclick="run()">振る</button><a href="log.html" target="_blank">
-<button>📜 ログ再生</button>
-</a><div id="history"></div><script>
+<body class="theme-dark">
 
-const input=document.getElementById("input")
-const historyDiv=document.getElementById("history")
+<h1>TRPG Dice</h1>
 
-/* Enter */
+<div class="themeButtons">
+<button onclick="setTheme('theme-light')">白</button>
+<button onclick="setTheme('theme-dark')">黒</button>
+<button onclick="setTheme('theme-midnight')">ミッドナイト</button>
+</div>
 
-input.addEventListener("keypress",e=>{
-if(e.key==="Enter") run()
-})
+<div class="diceBox">
 
-/* テーマ */
+<input id="diceInput" placeholder="例: CCB<=60 攻撃">
+<button onclick="roll()">振る</button>
 
-function setTheme(t){
-document.body.className=t
-}
+</div>
 
-/* 履歴 */
+<div id="result"></div>
 
-function saveHistory(text){
+<script>
 
-let list=JSON.parse(localStorage.getItem("diceHistory")||"[]")
+function roll(){
 
-list.unshift(text)
+let input=document.getElementById("diceInput").value
 
-if(list.length>100) list.pop()
+let main=input.split(" ")[0]
 
-localStorage.setItem("diceHistory",JSON.stringify(list))
+let resultText=""
 
-}
+let color="blue"
 
-/* ダイス */
+let dice=Math.floor(Math.random()*100)+1
 
-function run(){
+// CCB判定
 
-let full=input.value.trim()
+if(main.startsWith("CCB<=")){
 
-if(!full) return
+let target=parseInt(main.replace("CCB<=",""))
 
-let text=full.split(" ")[0]
+if(dice==1){
 
-let result=""
-let color="normal"
+resultText="1 → クリティカル"
+color="yellow"
 
-/* CCB */
+}else if(dice>=96){
 
-if(text.toUpperCase().startsWith("CCB")){
+resultText=dice+" → ファンブル"
+color="red"
 
-let m=text.match(/CCB((\d+))?(<=\d+)?/i)
+}else if(dice<=target){
 
-let fumble=null
-let target=null
-
-if(m[2]) fumble=parseInt(m[2])
-if(m[3]) target=parseInt(m[3].replace("<=",""))
-
-let roll=Math.floor(Math.random()*100)+1
-
-let success=roll<=target?"成功":"失敗"
-
-if(roll===1) color="crit"
-if(roll===100) color="fumble"
-
-if(fumble && roll>=fumble){
-
-color="fumble"
-result=`(1D100<=${target}) ＞ ${roll} ＞ ${success} ＞ 故障`
+resultText=dice+" → 成功"
 
 }else{
 
-result=`(1D100<=${target}) ＞ ${roll} ＞ ${success}`
+resultText=dice+" → 失敗"
 
 }
 
 }
 
-/* NdM */
+// RESB
 
-else if(/^\d+d\d+/i.test(text)){
+else if(main.startsWith("RESB")){
 
-let p=text.toLowerCase().split("d")
+let nums=main.match(/\((\d+)-(\d+)\)/)
 
-let n=parseInt(p[0])
-let m=parseInt(p[1])
+let a=parseInt(nums[1])
+let b=parseInt(nums[2])
 
-let rolls=[]
+let target=50+(a-b)*5
+
+let d=Math.floor(Math.random()*100)+1
+
+if(d<=target){
+
+resultText=d+" → 成功"
+
+}else{
+
+resultText=d+" → 失敗"
+
+}
+
+}
+
+// 1B100
+
+else if(main=="1B100"){
+
+let d=Math.floor(Math.random()*100)+1
+
+resultText=d
+
+}
+
+// XdY
+
+else if(main.includes("d")){
+
+let parts=main.split("d")
+
+let count=parseInt(parts[0])
+let sides=parseInt(parts[1])
+
 let total=0
+let detail=""
 
-for(let i=0;i<n;i++){
+for(let i=0;i<count;i++){
 
-let r=Math.floor(Math.random()*m)+1
-
-rolls.push(r)
+let r=Math.floor(Math.random()*sides)+1
 total+=r
+detail+=r+" "
 
 }
 
-result=`(${n}D${m}) ＞ [${rolls.join(",")}] ＞ 合計${total}`
+resultText=total+" ("+detail+")"
 
 }
 
-/* Bダイス */
+// choice
 
-else if(/^\d+B\d+/i.test(text)){
+else if(main.startsWith("choice[")){
 
-let m=text.match(/(\d+)B(\d+)(<=\d+)?/i)
+let text=main.replace("choice[","").replace("]","")
 
-let n=parseInt(m[1])
-let max=parseInt(m[2])
+let arr=text.split(",")
 
-let target=null
+let pick=arr[Math.floor(Math.random()*arr.length)]
 
-if(m[3]) target=parseInt(m[3].replace("<=",""))
-
-let rolls=[]
-let success=0
-
-for(let i=0;i<n;i++){
-
-let r=Math.floor(Math.random()*max)+1
-
-rolls.push(r)
-
-if(target && r<=target) success++
+resultText=pick
 
 }
 
-result=`(${n}B${max}<=${target}) ＞ [${rolls.join(",")}] ＞ 成功数${success}`
+document.getElementById("result").innerHTML=
+"<div class='diceResult "+color+"'>"+resultText+"</div>"
 
 }
 
-/* choice */
+function setTheme(theme){
 
-else if(text.startsWith("choice[")){
-
-let list=text.slice(7,-1).split(",")
-
-let r=list[Math.floor(Math.random()*list.length)]
-
-result=`choice ＞ ${r}`
+document.body.className=theme
 
 }
 
-/* 表示 */
+</script>
 
-let log=`${full} → <span class="${color}">${result}</span>`
-
-let div=document.createElement("div")
-
-div.className="msg"
-
-div.innerHTML=log
-
-historyDiv.prepend(div)
-
-saveHistory(log)
-
-input.value=""
-
-}
-
-</script></body>
+</body>
 </html>
