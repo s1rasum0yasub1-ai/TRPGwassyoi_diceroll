@@ -2,405 +2,100 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Ultimate Dice & Choice Tool</title>
+<title>RESB & TRPG ダイスツール</title>
 <style>
-:root{
-  --bg:#0f172a;
-  --panel:#1e293b;
-  --accent:#334155;
-  --text:#ffffff;
-}
-body{margin:0;font-family:sans-serif;background:var(--bg);color:var(--text);padding:20px}
-h2,h3{margin-top:20px}
-input,button,select{padding:6px;margin:4px 0}
-#history,#countResult{margin-top:10px;background:var(--panel);padding:8px;border-radius:8px;max-height:250px;overflow:auto}
-.msg{margin:4px 0;padding:4px;background:#1f2937;border-radius:4px}
+body{font-family:sans-serif;background:#0f172a;color:#fff;padding:20px;}
+h2,h3{margin-top:0;}
+input,button,select{padding:6px;margin:4px;}
+#resbDiv,#diceDiv,#history{background:#1e293b;padding:10px;border-radius:8px;margin-top:10px;}
+#history{max-height:250px;overflow:auto;}
+.msg{margin:4px 0;padding:4px;background:#334155;border-radius:4px;}
+label{display:block;margin-top:6px;}
+.flex{display:flex;align-items:center;gap:10px;}
 </style>
 </head>
 <body>
-<h2>🎲 Ultimate Dice & Choice Tool</h2>
-<input id="input" placeholder="例: 1d100 / 2B100<=50 / choice[a,b,c]">
-<button onclick="run()">実行</button>
+
+<h2>🎲 RESB & TRPG ダイスツール</h2>
+
+<div id="resbDiv">
+  <div class="flex">
+    <div>
+      <label>自分 (x)</label>
+      <input id="resbX" type="number">
+    </div>
+    <div>
+      <label>相手 (y)</label>
+      <input id="resbY" type="number">
+    </div>
+    <button onclick="calcRESB()">計算</button>
+  </div>
+  <div id="resbResult">RESB 結果: -</div>
+</div>
+
+<div id="diceDiv">
+  <label>ダイス入力 (例: 1d100 / 2B100<=50 / CCB<=50 / CCB(97)<=50 / choice[a,b,c] / 3d6)</label>
+  <input id="diceInput">
+  <button onclick="rollDice()">振る</button>
+</div>
+
 <div id="history"></div>
-<hr>
-<h3>🔢 カンマ集計ツール</h3>
-<input id="countInput" placeholder="例: 1,1,2,3,3,3">
-<button onclick="countItems()">集計</button>
-<div id="countResult"></div>
+
 <script>
-const historyDiv=document.getElementById("history");
-const input=document.getElementById("input");
+const historyDiv = document.getElementById("history");
 
-function saveHistory(text){
-  let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
-  list.unshift(text);
-  if(list.length>100) list.pop();
-  localStorage.setItem("diceHistory",JSON.stringify(list));
-}
-function loadHistory(){
-  let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
-  historyDiv.innerHTML="";
-  list.forEach(t=>{
-    let d=document.createElement("div");
-    d.className="msg";
-    d.textContent=t;
-    historyDiv.appendChild(d);
-  });
+/* 履歴追加 */
+function addHistory(text){
+  let div = document.createElement("div");
+  div.className = "msg";
+  div.textContent = text;
+  historyDiv.prepend(div);
 }
 
-function run(){
-  let text=input.value.trim();
+/* RESB計算 */
+function calcRESB(){
+  let x = parseFloat(document.getElementById("resbX").value)||0;
+  let y = parseFloat(document.getElementById("resbY").value)||0;
+  let result = x - y;
+  let text = `RESB(${x}-${y}) → ${result}`;
+  document.getElementById("resbResult").textContent = text;
+  addHistory(text);
+}
+
+/* ダイス振り */
+function rollDice(){
+  let text = document.getElementById("diceInput").value.trim().replace(/\s+/g,"");
   if(!text) return;
-  let result="";
-
-  // 空白削除でコマンド部分だけに
-  text=text.replace(/\s+/g,"");
+  let result = "";
 
   // choice[a,b,c]
-  if(text.startsWith("choice[")){
-    let options=text.slice(7,-1).split(",").map(s=>s.trim());
-    result=options[Math.floor(Math.random()*options.length)];
+  if(text.toLowerCase().startsWith("choice[")){
+    let options = text.slice(7,-1).split(",").map(s=>s.trim());
+    result = `choice → ${options[Math.floor(Math.random()*options.length)]}`;
   }
   // Bダイス
-  else if(/^\d+B\d+/.test(text.toUpperCase())){
-    let match=text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
-    if(!match){ result="形式エラー"; }
+  else if(/^\d+B\d+(<=\d+)?$/i.test(text)){
+    let m = text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
+    let n = parseInt(m[1]);
+    let sides = parseInt(m[2]);
+    let target = m[3]?parseInt(m[3].replace("<=","")):null;
+    if(n>1000){ result="回数上限1000まで"; }
     else{
-      let n=parseInt(match[1]);
-      let m=parseInt(match[2]);
-      let target=match[3]?parseInt(match[3].replace("<=","")):null;
-      if(n>1000){ result="回数上限1000まで"; }
-      else{
-        let rolls=[],success=0;
-        for(let i=0;i<n;i++){
-          let r=Math.floor(Math.random()*m)+1;
-          rolls.push(r);
-          if(target!==null && r<=target) success++;
-        }
-        result=target!==null?text+" ["+rolls.join(",")+"] 成功数"+success:"["+rolls.join(",")+"]";
-      }
-    }
-  }
-  // NdM
-  else if(/\d+d\d+/.test(text.toLowerCase())){
-    let parts=text.toLowerCase().split("d");
-    let n=parseInt(parts[0]);
-    let m=parseInt(parts[1]);
-    if(isNaN(n)||isNaN(m)){ result="形式エラー"; }
-    else if(n>1000){ result="回数上限1000まで"; }
-    else{
-      let total=0,rolls=[];
-      for(let i=0;i<n;i++){
-        let r=Math.floor(Math.random()*m)+1;
-        rolls.push(r);
-        total+=r;
-      }
-      result=rolls.length>1?rolls.join(",")+" → 合計:"+total:total;
-    }
-  }
-  // CCB
-  else if(text.toUpperCase().startsWith("CCB")){
-    let match=text.toUpperCase().match(/CCB(<=\d+)?/);
-    let target=match[1]?parseInt(match[1].replace("<=","")):null;
-    let roll=Math.floor(Math.random()*100)+1;
-    let success=(target!==null && roll<=target)?1:0;
-    result=text+" ["+roll+"]"+(target!==null?" 成功数"+success:"");
-  }
-  // CC
-  else if(text.toUpperCase().startsWith("CC")){
-    let match=text.toUpperCase().match(/CC(<=\d+)?/);
-    let target=match[1]?parseInt(match[1].replace("<=","")):null;
-    let roll=Math.floor(Math.random()*100)+1;
-    let crit=(roll===1)?"クリティカル":"";
-    let fumble=(roll===100)?"ファンブル":"";
-    result=text+" ["+roll+"] "+crit+fumble;
-  }
-  else{ result="未対応コマンド"; }
-
-  let div=document.createElement("div");
-  div.className="msg";
-  div.textContent=input.value+" → "+result;
-  historyDiv.prepend(div);
-  saveHistory(input.value+" → "+result);
-  input.value="";
-}
-
-function countItems(){
-  let text=document.getElementById("countInput").value.trim();
-  if(!text) return;
-  let items=text.split(",").map(t=>t.trim()).filter(t=>t!=="");
-  let map={};
-  items.forEach(item=>map[item]=(map[item]||0)+1);
-  let sorted=Object.keys(map).sort((a,b)=>!isNaN(a)&&!isNaN(b)?Number(a)-Number(b):a.localeCompare(b));
-  let output="";
-  sorted.forEach(key=>output+=key+" × "+map[key]+"<br>");
-  document.getElementById("countResult").innerHTML=output;
-}
-
-loadHistory();
-</script>
-</body>
-</html>    d.textContent=t;
-    historyDiv.appendChild(d);
-  });
-}
-
-/* ---------------- ダイス・Choice実行 ---------------- */
-function run(){
-  let text=input.value.trim();
-  if(!text) return;
-  let result="";
-
-  // choice[a,b,c]
-  if(text.startsWith("choice[")){
-    let options=text.slice(7,-1).split(",").map(s=>s.trim());
-    result=options[Math.floor(Math.random()*options.length)];
-  }
-  // Bダイス（例: 2B100<=50）
-  else if(text.toUpperCase().includes("B")){
-    let match=text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
-    if(!match){ result="形式エラー"; }
-    else{
-      let n=parseInt(match[1]);
-      let m=parseInt(match[2]);
-      let target=match[3]?parseInt(match[3].replace("<=","")):null;
-      if(n>1000){ result="回数上限1000まで"; }
-      else{
-        let rolls=[],success=0;
-        for(let i=0;i<n;i++){
-          let r=Math.floor(Math.random()*m)+1;
-          rolls.push(r);
-          if(target!==null && r<=target) success++;
-        }
-        result=target!==null ? text+" ["+rolls.join(",")+"] 成功数"+success : "["+rolls.join(",")+"]";
-      }
-    }
-  }
-  // NdM ダイス（例: 3d6）
-  else if(text.includes("d")){
-    let parts=text.toLowerCase().split("d");
-    let n=parseInt(parts[0]);
-    let m=parseInt(parts[1]);
-    if(isNaN(n)||isNaN(m)){ result="形式エラー"; }
-    else if(n>1000){ result="回数上限1000まで"; }
-    else{
-      let total=0,rolls=[];
-      for(let i=0;i<n;i++){
-        let r=Math.floor(Math.random()*m)+1;
-        rolls.push(r);
-        total+=r;
-      }
-      result=rolls.length>1?rolls.join(",")+" → 合計:"+total:total;
-    }
-  }
-  // CCB判定（例: CCB<=50）
-  else if(text.toUpperCase().startsWith("CCB")){
-    let match=text.toUpperCase().match(/CCB(<=\d+)?/);
-    let target=match[1]?parseInt(match[1].replace("<=","")):null;
-    let roll=Math.floor(Math.random()*100)+1;
-    let success=0;
-    if(target!==null && roll<=target) success=1;
-    result=text+" ["+roll+"]"+(target!==null?" 成功数"+success:"");
-  }
-  // CC判定（例: CC）
-  else if(text.toUpperCase().startsWith("CC")){
-    let roll=Math.floor(Math.random()*100)+1;
-    let crit=roll===1?"クリティカル":"";
-    let fumble=roll===100?"ファンブル":"";
-    result=text+" ["+roll+"] "+crit+fumble;
-  }
-  else{
-    result="未対応コマンド";
-  }
-
-  let div=document.createElement("div");
-  div.className="msg";
-  div.textContent=text+" → "+result;
-  historyDiv.prepend(div);
-  saveHistory(text+" → "+result);
-  input.value="";
-}
-
-/* ---------------- カンマ集計ツール ---------------- */
-function countItems(){
-  let text=document.getElementById("countInput").value.trim();
-  if(!text) return;
-  let items=text.split(",").map(t=>t.trim()).filter(t=>t!=="");
-  let map={};
-  items.forEach(item=>map[item]=(map[item]||0)+1);
-  let sorted=Object.keys(map).sort((a,b)=>!isNaN(a)&&!isNaN(b)?Number(a)-Number(b):a.localeCompare(b));
-  let output="";
-  sorted.forEach(key=>output+=key+" × "+map[key]+"<br>");
-  document.getElementById("countResult").innerHTML=output;
-}
-
-/* ---------------- 初期化 ---------------- */
-loadHistory();
-</script>
-
-</body>
-</html>function saveHistory(text){
-  let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
-  list.unshift(text);
-  // 最大100件に制限
-  if(list.length>100) list.pop();
-  localStorage.setItem("diceHistory",JSON.stringify(list));
-}
-function loadHistory(){
-  let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
-  historyDiv.innerHTML="";
-  list.forEach(t=>{
-    let d=document.createElement("div");
-    d.className="msg";
-    d.textContent=t;
-    historyDiv.appendChild(d);
-  });
-}
-
-/* ダイス＆Choice実行 */
-function run(){
-  let text=input.value.trim();
-  if(!text) return;
-  let result="";
-
-  // choice[a,b,c]
-  if(text.startsWith("choice[")){
-    let options=text.slice(7,-1).split(",").map(s=>s.trim());
-    result=options[Math.floor(Math.random()*options.length)];
-  }
-  // Bダイス
-  else if(text.toUpperCase().includes("B")){
-    let match=text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
-    if(!match){ result="形式エラー"; }
-    else{
-      let n=parseInt(match[1]);
-      let m=parseInt(match[2]);
-      let target=match[3]?parseInt(match[3].replace("<=","")):null;
-      if(n>1000){ result="回数上限1000まで"; }
-      else{
-        let rolls=[],success=0;
-        for(let i=0;i<n;i++){
-          let r=Math.floor(Math.random()*m)+1;
-          rolls.push(r);
-          if(target!==null && r<=target) success++;
-        }
-        result=target!==null ? text+" ["+rolls.join(",")+"] 成功数"+success : "["+rolls.join(",")+"]";
-      }
-    }
-  }
-  // NdM ダイス
-  else if(text.includes("d")){
-    let parts=text.toLowerCase().split("d");
-    let n=parseInt(parts[0]);
-    let m=parseInt(parts[1]);
-    if(isNaN(n)||isNaN(m)){ result="形式エラー"; }
-    else if(n>1000){ result="回数上限1000まで"; }
-    else{
-      let total=0,rolls=[];
-      for(let i=0;i<n;i++){
-        let r=Math.floor(Math.random()*m)+1;
-        rolls.push(r);
-        total+=r;
-      }
-      result=rolls.length>1?rolls.join(",")+" → 合計:"+total:total;
-    }
-  }
-  // CCB判定
-  else if(text.toUpperCase().startsWith("CCB")){
-    let match=text.toUpperCase().match(/CCB(<=\d+)?/);
-    let target=match[1]?parseInt(match[1].replace("<=","")):null;
-    let roll=Math.floor(Math.random()*100)+1;
-    let success=0;
-    if(target!==null && roll<=target) success=1;
-    result=text+" ["+roll+"]"+(target!==null?" 成功数"+success:"");
-  }
-  // CC判定
-  else if(text.toUpperCase().startsWith("CC")){
-    let roll=Math.floor(Math.random()*100)+1;
-    let crit=roll===1?"クリティカル":"";
-    let fumble=roll===100?"ファンブル":"";
-    result=text+" ["+roll+"] "+crit+fumble;
-  }
-  else{
-    result="未対応コマンド";
-  }
-
-  let div=document.createElement("div");
-  div.className="msg";
-  div.textContent=text+" → "+result;
-  historyDiv.prepend(div);
-  saveHistory(text+" → "+result);
-  input.value="";
-}
-
-/* カンマ集計ツール */
-function countItems(){
-  let text=document.getElementById("countInput").value.trim();
-  if(!text) return;
-  let items=text.split(",").map(t=>t.trim()).filter(t=>t!=="");
-  let map={};
-  items.forEach(item=>map[item]=(map[item]||0)+1);
-  let sorted=Object.keys(map).sort((a,b)=>!isNaN(a)&&!isNaN(b)?Number(a)-Number(b):a.localeCompare(b));
-  let output="";
-  sorted.forEach(key=>output+=key+" × "+map[key]+"<br>");
-  document.getElementById("countResult").innerHTML=output;
-}
-
-/* 初期化 */
-loadHistory();
-</script>
-
-</body>
-</html>function saveHistory(text){
-  let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
-  list.unshift(text);
-  localStorage.setItem("diceHistory",JSON.stringify(list));
-}
-function loadHistory(){
-  let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
-  historyDiv.innerHTML="";
-  list.forEach(t=>{
-    let d=document.createElement("div");
-    d.className="msg";
-    d.textContent=t;
-    historyDiv.appendChild(d);
-  });
-}
-
-/* ダイス＆Choice実行 */
-function run(){
-  let text=input.value.trim();
-  if(!text)return;
-  let result="";
-
-  // choice[a,b,c]
-  if(text.startsWith("choice[")){
-    let options=text.slice(7,-1).split(",");
-    result=options[Math.floor(Math.random()*options.length)];
-  }
-  // Bダイス
-  else if(text.toUpperCase().includes("B")){
-    let match=text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
-    if(!match){ result="形式エラー"; }
-    else{
-      let n=parseInt(match[1]);
-      let m=parseInt(match[2]);
-      let target=match[3]?parseInt(match[3].replace("<=","")):null;
       let rolls=[],success=0;
       for(let i=0;i<n;i++){
-        let r=Math.floor(Math.random()*m)+1;
+        let r = Math.floor(Math.random()*sides)+1;
         rolls.push(r);
         if(target!==null && r<=target) success++;
       }
-      result=target!==null ? text+" ["+rolls.join(",")+"] 成功数"+success : "["+rolls.join(",")+"]";
+      result = target!==null ? text+" ["+rolls.join(",")+"] 成功数"+success : "["+rolls.join(",")+"]";
     }
   }
   // NdM ダイス
-  else if(text.includes("d")){
-    let parts=text.toLowerCase().split("d");
-    let n=parseInt(parts[0]);
-    let m=parseInt(parts[1]);
-    if(isNaN(n)||isNaN(m)){ result="形式エラー"; }
+  else if(/^\d+d\d+$/i.test(text)){
+    let parts = text.toLowerCase().split("d");
+    let n = parseInt(parts[0]);
+    let m = parseInt(parts[1]);
+    if(n>1000){ result="回数上限1000まで"; }
     else{
       let total=0,rolls=[];
       for(let i=0;i<n;i++){
@@ -408,258 +103,38 @@ function run(){
         rolls.push(r);
         total+=r;
       }
-      result=rolls.length>1?rolls.join(",")+" → 合計:"+total:total;
+      result = rolls.length>1 ? rolls.join(",")+" → 合計:"+total : total;
     }
   }
-  // CC / CCB 判定（1d100形式）
-  else if(text.toUpperCase().startsWith("CCB")){
-    // CCB<=xx
-    let match=text.toUpperCase().match(/CCB(<=\d+)?/);
-    let target=match[1]?parseInt(match[1].replace("<=","")):null;
-    let roll=Math.floor(Math.random()*100)+1;
-    let success=0;
-    if(target!==null && roll<=target) success=1;
-    result=text+" ["+roll+"]"+(target!==null?" 成功数"+success:"");
+  // CCB (故障ナンバー対応)
+  else if(/^CCB(\(\d+\))?(<=\d+)?$/i.test(text)){
+    let m = text.toUpperCase().match(/^CCB(\((\d+)\))?(<=\d+)?$/i);
+    let failNum = m[2]?parseInt(m[2]):null;
+    let target = m[3]?parseInt(m[3].replace("<=","")):null;
+    let roll = Math.floor(Math.random()*100)+1;
+    let success = (target!==null && roll<=target)?1:0;
+    let fail = (failNum!==null && roll>=failNum)?true:false;
+    result = `${text} → 出目:${roll} ${success?"成功":""} ${fail?"故障":""}`;
   }
-  else if(text.toUpperCase().startsWith("CC")){
-    let roll=Math.floor(Math.random()*100)+1;
-    let crit=roll===1?"クリティカル":"";
-    let fumble=roll===100?"ファンブル":"";
-    result=text+" ["+roll+"] "+crit+fumble;
+  // CC (クリティカル/ファンブル)
+  else if(/^CC(<=\d+)?$/i.test(text)){
+    let m = text.toUpperCase().match(/^CC(<=\d+)?$/i);
+    let target = m[1]?parseInt(m[1].replace("<=","")):null;
+    let roll = Math.floor(Math.random()*100)+1;
+    let succ = (target!==null && roll<=target)?1:0;
+    let crit = roll===1?"クリティカル":"";
+    let fumble = roll===100?"ファンブル":"";
+    result = target!==null ? `${text} → 出目:${roll} 成功数${succ} ${crit}${fumble}` : `${text} → 出目:${roll} ${crit}${fumble}`;
   }
   else{
     result="未対応コマンド";
   }
 
-  let div=document.createElement("div");
-  div.className="msg";
-  div.textContent=text+" → "+result;
-  historyDiv.prepend(div);
-  saveHistory(text+" → "+result);
-  input.value="";
-}
-
-/* カンマ集計ツール */
-function countItems(){
-  let text=document.getElementById("countInput").value.trim();
-  if(!text) return;
-  let items=text.split(",").map(t=>t.trim()).filter(t=>t!=="");
-  let map={};
-  items.forEach(item=>map[item]=(map[item]||0)+1);
-  let sorted=Object.keys(map).sort((a,b)=>!isNaN(a)&&!isNaN(b)?Number(a)-Number(b):a.localeCompare(b));
-  let output="";
-  sorted.forEach(key=>output+=key+" × "+map[key]+"<br>");
-  document.getElementById("countResult").innerHTML=output;
+  addHistory(result);
+  document.getElementById("diceInput").value="";
 }
 
 /* 初期化 */
-loadHistory();
-</script>
-
-</body>
-</html>function saveHistory(text){
-let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
-list.unshift(text);
-localStorage.setItem("diceHistory",JSON.stringify(list));
-}
-
-/* 履歴表示 */
-function loadHistory(){
-let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
-historyDiv.innerHTML="";
-list.forEach(t=>{
-let d=document.createElement("div");
-d.className="msg";
-d.textContent=t;
-historyDiv.appendChild(d);
-});
-}
-
-/* メイン処理 */
-function run(){
-
-let text=input.value.trim();
-if(!text)return;
-
-let result="";
-
-/* choice */
-if(text.startsWith("choice[")){
-let options=text.slice(7,-1).split(",");
-result=options[Math.floor(Math.random()*options.length)];
-}
-
-/* Bダイス（目標値あり対応） */
-else if(text.toUpperCase().includes("B")){
-
-let match=text.toUpperCase().match(/(\d+)B(\d+)(<=\d+)?/);
-
-if(!match){
-result="形式エラー";
-}
-else{
-
-let n=parseInt(match[1]);
-let m=parseInt(match[2]);
-let target=null;
-
-if(match[3]){
-target=parseInt(match[3].replace("<=",""));
-}
-
-let rolls=[];
-let success=0;
-
-for(let i=0;i<n;i++){
-let r=Math.floor(Math.random()*m)+1;
-rolls.push(r);
-
-if(target!==null && r<=target){
-success++;
-}
-}
-
-if(target!==null){
-result=text+" ["+rolls.join(",")+"] 成功数"+success;
-}
-else{
-result="["+rolls.join(",")+"]";
-}
-
-}
-}
-
-/* 通常ダイス */
-else if(text.includes("d")){
-
-let parts=text.toLowerCase().split("d");
-let n=parseInt(parts[0]);
-let m=parseInt(parts[1]);
-
-if(isNaN(n)||isNaN(m)){
-result="形式エラー";
-}
-else{
-let total=0;
-for(let i=0;i<n;i++){
-total+=Math.floor(Math.random()*m)+1;
-}
-result=total;
-}
-}
-
-else{
-result="未対応コマンド";
-}
-
-let output=text+" → "+result;
-
-let div=document.createElement("div");
-div.className="msg";
-div.textContent=output;
-
-historyDiv.prepend(div);
-
-saveHistory(output);
-
-input.value="";
-}
-
-/* 集計ツール */
-function countItems(){
-
-let text=document.getElementById("countInput").value.trim();
-if(!text)return;
-
-let items=text.split(",")
-.map(t=>t.trim())
-.filter(t=>t!=="");
-
-let map={};
-
-items.forEach(item=>{
-map[item]=(map[item]||0)+1;
-});
-
-let sorted=Object.keys(map).sort((a,b)=>{
-if(!isNaN(a)&&!isNaN(b))
-return Number(a)-Number(b);
-return a.localeCompare(b);
-});
-
-let output="";
-sorted.forEach(key=>{
-output+=key+" × "+map[key]+"<br>";
-});
-
-document.getElementById("countResult").innerHTML=output;
-}
-
-loadHistory();
-
-</script>
-
-</body>
-</html>function loadHistory(){
-let list=JSON.parse(localStorage.getItem("diceHistory")||"[]");
-historyDiv.innerHTML="";
-list.forEach(t=>{
-let d=document.createElement("div");
-d.className="msg";
-d.textContent=t;
-historyDiv.appendChild(d);
-});
-}
-
-function run(){
-let text=input.value.trim();
-if(!text)return;
-
-let result="";
-
-
-// choice[a,b,c]
-if(text.startsWith("choice[")){
-let options=text.slice(7,-1).split(",");
-result=options[Math.floor(Math.random()*options.length)];
-}
-
-// NdM ダイス
-else if(text.includes("d")){
-let parts=text.toLowerCase().split("d");
-let n=parseInt(parts[0]);
-let m=parseInt(parts[1]);
-
-if(isNaN(n)||isNaN(m)){
-result="形式エラー";
-}
-else{
-let total=0;
-for(let i=0;i<n;i++){
-total+=Math.floor(Math.random()*m)+1;
-}
-result=total;
-}
-}
-
-else{
-result="未対応コマンド";
-}
-
-let output=text+" → "+result;
-
-let div=document.createElement("div");
-div.className="msg";
-div.textContent=output;
-historyDiv.prepend(div);
-
-saveHistory(output);
-
-input.value="";
-}
-
-loadHistory();
-
 </script>
 
 </body>
