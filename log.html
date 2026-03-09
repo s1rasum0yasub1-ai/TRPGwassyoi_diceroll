@@ -1,84 +1,73 @@
-<!DOCTYPE html><html lang="ja">
+<!DOCTYPE html>
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
 <title>Session Log</title>
 <link rel="stylesheet" href="style.css">
-</head><body class="dark"><h2>📜 セッションログ再生</h2>テーマ
-<select onchange="setTheme(this.value)">
+</head>
 
-<option value="dark">黒</option>
-<option value="white">白</option>
-<option value="midnight">ミッドナイト</option>
-</select><br><textarea id="logInput" rows="8" cols="60"
-placeholder="KP: シナリオ開始"></textarea><br><button onclick="playLog()">再生</button>
+<body class="theme-dark">
 
-<div id="viewer"></div><script>
+<h1>セッションログ</h1>
 
-function setTheme(t){
-document.body.className=t
+<textarea id="logInput" rows="10" style="width:80%" placeholder="ログ貼り付け"></textarea>
+
+<br><br>
+
+<button onclick="parseLog()">表示</button>
+
+<div id="logView"></div>
+
+<script>
+
+function parseLog(){
+
+let text=document.getElementById("logInput").value
+
+let lines=text.split("\n")
+
+let html=""
+
+lines.forEach(line=>{
+
+let parts=line.split(":")
+
+if(parts.length>=2){
+
+let name=parts[0]
+let msg=parts.slice(1).join(":")
+
+let color=randomColor()
+
+html+="<div class='logLine'><span class='name' style='color:"+color+"'>"+name+"</span>: "+msg+"</div>"
+
+}else{
+
+html+="<div>"+line+"</div>"
+
 }
 
-/* 名前色 */
+})
+
+document.getElementById("logView").innerHTML=html
+
+}
 
 function randomColor(){
 
 let colors=[
-"#ff6b6b",
-"#6bc5ff",
-"#ffd93d",
-"#95f59b",
-"#ff9df5"
+"#ff8a8a",
+"#8affc1",
+"#8ab4ff",
+"#ffd480",
+"#d28aff"
 ]
 
 return colors[Math.floor(Math.random()*colors.length)]
 
 }
 
-function playLog(){
+</script>
 
-let text=document.getElementById("logInput").value
-
-let lines=text.split("\n")
-
-let viewer=document.getElementById("viewer")
-
-viewer.innerHTML=""
-
-let i=0
-
-function next(){
-
-if(i>=lines.length) return
-
-let line=lines[i]
-
-let parts=line.split(":")
-
-let name=parts[0]
-
-let msg=parts.slice(1).join(":")
-
-let div=document.createElement("div")
-
-div.className="chatLine"
-
-div.style.color=randomColor()
-
-div.textContent=name+" : "+msg
-
-viewer.appendChild(div)
-
-viewer.scrollTop=viewer.scrollHeight
-
-i++
-
-setTimeout(next,300)
-
-}
-
-next()
-
-}
-
-</script></body>
+</body>
 </html>
